@@ -15,8 +15,9 @@ RUN apt-get update && \
 
 USER airflow
 
-# Instala versões travadas e compatíveis do dbt e do Snowflake para evitar backtracking do pip
+# Instala versões travadas e compatíveis do dbt, Snowflake e utilitários
 RUN pip install --no-cache-dir \
     dbt-core==1.8.2 \
     dbt-snowflake==1.8.2 \
-    apache-airflow-providers-snowflake
+    apache-airflow-providers-snowflake \
+    loguru

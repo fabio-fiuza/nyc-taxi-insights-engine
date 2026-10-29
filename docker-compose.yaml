@@ -10,11 +10,20 @@ x-airflow-common:
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
     AIRFLOW__CORE__PARALLELISM: '4'
+    # Variáveis do Snowflake injetadas com segurança do seu .env
+    SNOWFLAKE_USER: "${SNOWFLAKE_USER}"
+    SNOWFLAKE_PASSWORD: "${SNOWFLAKE_PASSWORD}"
+    SNOWFLAKE_ACCOUNT: "${SNOWFLAKE_ACCOUNT}"
+    SNOWFLAKE_DATABASE: "${SNOWFLAKE_DATABASE}"
+    SNOWFLAKE_WAREHOUSE: "${SNOWFLAKE_WAREHOUSE}"
+  env_file:
+    - .env
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs:/opt/airflow/logs
     - ./plugins:/opt/airflow/plugins
     - ./dbt_project:/opt/airflow/dbt_project
+    - ./include:/opt/airflow/include
     - ~/.dbt:/home/airflow/.dbt
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
@@ -57,8 +66,8 @@ services:
     command:
       - -c
       - |
-        mkdir -p /sources/logs /sources/dags /sources/plugins /sources/dbt_project
-        chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins,dbt_project}
+        mkdir -p /sources/logs /sources/dags /sources/plugins /sources/dbt_project /sources/include
+        chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins,dbt_project,include}
         exec /entrypoint airflow version
     environment:
       <<: *airflow-common-env
