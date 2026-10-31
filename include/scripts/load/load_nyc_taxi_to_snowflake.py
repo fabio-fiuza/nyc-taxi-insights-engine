@@ -157,3 +157,6 @@ def run_pipeline(year: int = 2026, month: int = 1):
 # %%
 if __name__ == "__main__":
     run_pipeline(year=2026, month=1)
+    
+
+# %%
