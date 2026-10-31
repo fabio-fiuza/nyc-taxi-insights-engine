@@ -1,4 +1,6 @@
-name: dbt_project
+name: 'nyc_taxi_insights_engine'
+version: '1.0.0'
+config-version: 2
 
 profile: nyc_taxi_insights_engine
 
@@ -10,15 +12,18 @@ clean-targets:
   - "dbt_packages"
 
 seeds:
-  # Builds seeds into '<your_schema_name>_raw'
-  dbt_project:
+  nyc_taxi_insights_engine:
     +schema: raw
 
 models:
-  dbt_project:
+  nyc_taxi_insights_engine:
     +static_analysis: strict
-    # Materialize staging models as views, and marts as tables
     staging:
       +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: table
+      +schema: intermediate
     marts:
       +materialized: table
+      +schema: marts

@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: nyc_tripdata
+    description: "Raw NYC Taxi trip data ingested via Airflow"
+    database: NYC_TAXI_DB
+    schema: RAW
+    tables:
+      - name: raw_taxi_trips
+        description: "Raw yellow taxi trip records"
+        identifier: RAW_TAXI_TRIPS
