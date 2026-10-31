@@ -48,10 +48,3 @@ CREATE TABLE IF NOT EXISTS NYC_TAXI_DB.RAW.RAW_TAXI_TRIPS (
     Airport_fee FLOAT,
     cbd_congestion_fee FLOAT
 );
-
-CREATE OR REPLACE TABLE NYC_TAXI_DB.RAW.RAW_TAXI_ZONE_LOOKUP (
-        LocationID INT,
-        Borough STRING,
-        Zone STRING,
-        service_zone STRING
-);

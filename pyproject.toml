@@ -6,5 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "apache-airflow>=3.3.2",
+    "dbt-snowflake>=1.12.4",
     "loguru>=0.7.3",
+    "astronomer-cosmos>=1.7.0",
 ]

@@ -2,22 +2,22 @@ version: '3.8'
 
 x-airflow-common:
   &airflow-common
-  # Aponte para a imagem que será construída localmente através do seu Dockerfile
   build: .
+  env_file:
+    - .env
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: SequentialExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
     AIRFLOW__CORE__PARALLELISM: '4'
-    # Variáveis do Snowflake injetadas com segurança do seu .env
-    SNOWFLAKE_USER: "${SNOWFLAKE_USER}"
-    SNOWFLAKE_PASSWORD: "${SNOWFLAKE_PASSWORD}"
-    SNOWFLAKE_ACCOUNT: "${SNOWFLAKE_ACCOUNT}"
-    SNOWFLAKE_DATABASE: "${SNOWFLAKE_DATABASE}"
-    SNOWFLAKE_WAREHOUSE: "${SNOWFLAKE_WAREHOUSE}"
-  env_file:
-    - .env
+    # Injeção direta das variáveis do Snowflake provenientes do .env
+    SNOWFLAKE_USER: ${SNOWFLAKE_USER}
+    SNOWFLAKE_PASSWORD: ${SNOWFLAKE_PASSWORD}
+    SNOWFLAKE_ACCOUNT: ${SNOWFLAKE_ACCOUNT}
+    SNOWFLAKE_DATABASE: ${SNOWFLAKE_DATABASE}
+    SNOWFLAKE_WAREHOUSE: ${SNOWFLAKE_WAREHOUSE}
+    AIRFLOW_CONN_SNOWFLAKE_DEFAULT: 'snowflake://${SNOWFLAKE_USER}:${SNOWFLAKE_PASSWORD}@${SNOWFLAKE_ACCOUNT}/STAGING?warehouse=${SNOWFLAKE_WAREHOUSE}&database=${SNOWFLAKE_DATABASE}'
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs:/opt/airflow/logs

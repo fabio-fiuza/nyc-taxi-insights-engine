@@ -20,4 +20,5 @@ RUN pip install --no-cache-dir \
     dbt-core==1.8.2 \
     dbt-snowflake==1.8.2 \
     apache-airflow-providers-snowflake \
-    loguru
+    loguru \
+    astronomer-cosmos>=1.7.0
