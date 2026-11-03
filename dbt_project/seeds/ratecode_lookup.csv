@@ -1,0 +1,8 @@
+"ratecode_id","ratecode_name","description"
+1,"Standard rate","Standard standard-metered fare applied for regular urban trips within the city limits."
+2,"JFK","Flat-rate fare specifically applied to trips originating from or terminating at John F. Kennedy International Airport."
+3,"Newark","Fixed-rate or specialized fare structure applied to trips traveling to or from Newark Liberty International Airport."
+4,"Nassau or Westchester","Special fare rate applied for trips extending outside the city boundaries into Nassau or Westchester counties."
+5,"Negotiated fare","Custom fare negotiated directly between the passenger and the driver for special or long-distance trips."
+6,"Group ride","Shared ride rate applied when multiple passengers or groups share the vehicle under specific pooling programs."
+99,"Null/unknown","Unspecified or unknown rate code recorded by the system."

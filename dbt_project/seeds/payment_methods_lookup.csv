@@ -1,0 +1,8 @@
+"payment_type_id","payment_type","description"
+0,"Flex Fare trip","Trip booked through an app or service offering upfront or flexible pricing models"
+1,"Credit card","Trip paid securely using a credit or debit card processed via the in-vehicle terminal"
+2,"Cash","Trip paid directly with physical paper currency handed to the driver"
+3,"No charge","Trip provided at no monetary cost to the passenger (e.g., courtesy or promotional ride)"
+4,"Dispute","Trip disputed by the passenger regarding the fare amount, service, or route taken."
+5,"Unknown","Payment method could not be determined or recorded properly by the system"
+6,"Voided trip","Trip canceled or invalidated administratively after being initiated"
