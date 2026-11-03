@@ -14,6 +14,12 @@ clean-targets:
 seeds:
   nyc_taxi_insights_engine:
     +schema: raw
+    taxi_zones_lookup:
+      +file_format: csv
+    payment_methods_lookup:
+      +file_format: csv
+    ratecode_lookup:
+      +file_format: csv
 
 models:
   nyc_taxi_insights_engine:
