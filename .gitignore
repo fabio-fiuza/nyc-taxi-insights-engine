@@ -222,3 +222,5 @@ __marimo__/
 # Data Build Tools (dbt)
 .dbt
 profiles.yml
+
+logs/
