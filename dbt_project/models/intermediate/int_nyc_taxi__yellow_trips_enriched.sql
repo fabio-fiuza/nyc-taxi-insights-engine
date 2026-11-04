@@ -1,6 +1,5 @@
-{{ config(
-    materialized = 'view'
-) }}
+-- int_nyc_taxi__yellow_trips_enriched.sql
+{{ config(materialized = 'view') }}
 
 WITH base_staging AS (
     SELECT * FROM {{ ref('stg_nyc_taxi__yellow_trips') }}
@@ -20,7 +19,7 @@ calculated_timestamps AS (
         -- Base trip duration calculation in minutes
         DATEDIFF('second', pickup_datetime, dropoff_datetime)
         / 60.0 AS trip_duration_min
-        
+
     FROM base_staging
 ),
 
