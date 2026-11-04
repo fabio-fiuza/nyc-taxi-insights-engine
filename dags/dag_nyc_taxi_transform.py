@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from airflow import DAG
 from airflow.datasets import Dataset
-from cosmos import DbtDag, ProjectConfig, ProfileConfig, ExecutionConfig
+from cosmos import DbtDag, ProjectConfig, ProfileConfig, ExecutionConfig, RenderConfig
 from cosmos.profiles import SnowflakeUserPasswordProfileMapping
 
 raw_taxi_dataset = Dataset("snowflake://nyc_taxi_db/raw/raw_taxi_trips")
@@ -32,6 +32,12 @@ my_dbt_dag = DbtDag(
     project_config=ProjectConfig(
         dbt_project_path=DBT_ROOT_PATH,
     ),
+    render_config=RenderConfig(
+        dbt_deps=False,
+    ),
+    operator_args={
+        "install_deps": False,  # Movido para o DbtDag, alinhando com o dbt_deps=False do RenderConfig
+    },
     profile_config=profile_config,
     execution_config=ExecutionConfig(
         dbt_executable_path=f"{os.environ.get('AIRFLOW_HOME', '/usr/local/airflow')}/.venv/bin/dbt",
