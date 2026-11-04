@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=https://www.getdbt.com/dbt-schema.json
+version: 2
+
+models:
+  - name: stg_nyc_taxi__yellow_trips
+    columns:
+      - name: pickup_location_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_nyc_taxi__zones')
+              field: location_id
+
+      - name: dropoff_location_id
+        tests:
+          - not_null
+          - relationships: 
+              to: ref('stg_nyc_taxi__zones')
+              field: location_id
+
+  - name: stg_nyc_taxi__zones
+    columns:
+      - name: service_zone
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Boro Zone', 'Yellow Zone', 'EWR', 'Airports', 'N/A']
+
+      - name: borough
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['EWR', 'Queens', 'Bronx', 'Manhattan', 'Brooklyn', 'Unknown', 'Outside of NYC', 'Staten Island']
