@@ -1,0 +1,258 @@
+version: 2
+
+models:
+  - name: dim_dates
+    description: "Calendar dimension containing natural dates and derived calendar attributes."
+    columns:
+      - name: date_id
+        description: "Natural date identifier in YYYYMMDD integer format."
+        tests:
+          - not_null
+          - unique
+
+      - name: date
+        description: "Calendar date."
+        tests:
+          - not_null
+          - unique
+
+      - name: year
+        tests:
+          - not_null
+
+      - name: quarter
+        tests:
+          - not_null
+
+      - name: month
+        tests:
+          - not_null
+
+      - name: month_name
+        tests:
+          - not_null
+
+      - name: day
+        tests:
+          - not_null
+
+      - name: weekday
+        description: "ISO weekday normalized to 0 = Monday and 6 = Sunday."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5, 6]
+
+      - name: weekday_name
+        description: "English weekday name: Monday through Sunday."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+      - name: is_weekend
+        tests:
+          - not_null
+
+  - name: dim_vendors
+    description: "Vendor dimension describing the TPEP provider associated with each taxi trip."
+    columns:
+      - name: vendor_key
+        description: "Surrogate key uniquely identifying a vendor."
+        tests:
+          - not_null
+          - unique
+
+      - name: vendor_id
+        description: "Natural vendor identifier; 99 represents a null or unknown vendor."
+        tests:
+          - not_null
+          - unique
+          - accepted_values:
+              arguments:
+                values: ['1', '2', '6', '7', '99']
+
+      - name: vendor_name
+        description: "Provider name or Null/unknown for unidentified vendors."
+        tests:
+          - not_null
+
+  - name: dim_payments_methods
+    description: "Payment method dimension describing how each taxi trip was paid."
+    columns:
+      - name: payment_method_key
+        description: "Surrogate key uniquely identifying a payment method."
+        tests:
+          - not_null
+          - unique
+
+      - name: payment_method_id
+        description: "Natural payment method identifier; 5 represents Unknown."
+        tests:
+          - not_null
+          - unique
+          - accepted_values:
+              arguments:
+                values: ['0', '1', '2', '3', '4', '5', '6']
+
+      - name: payment_method_type
+        description: "Payment method description."
+        tests:
+          - not_null
+          - unique
+
+  - name: dim_ratecodes
+    description: "Rate code dimension describing the final fare rate applied to each taxi trip."
+    columns:
+      - name: ratecode_key
+        description: "Surrogate key uniquely identifying a rate code."
+        tests:
+          - not_null
+          - unique
+
+      - name: ratecode_id
+        description: "Natural rate code identifier; 99 represents Null/unknown."
+        tests:
+          - not_null
+          - unique
+          - accepted_values:
+              arguments:
+                values: ['1', '2', '3', '4', '5', '6', '99']
+
+      - name: ratecode_name
+        description: "Short name describing the rate code."
+        tests:
+          - not_null
+          - unique
+
+  - name: dim_zones
+    description: "Taxi zone dimension sourced from the TLC location lookup."
+    columns:
+      - name: location_id
+        description: "Natural TLC taxi zone identifier."
+        tests:
+          - not_null
+          - unique
+
+      - name: borough
+        description: "New York City borough or external zone classification."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['EWR', 'Queens', 'Bronx', 'Manhattan', 'Brooklyn', 'Unknown', 'Outside of NYC', 'Staten Island']
+
+      - name: zone_name
+        description: "Official TLC taxi zone name."
+        tests:
+          - not_null
+
+      - name: service_zone
+        description: "TLC regulatory service zone category."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Boro Zone', 'Yellow Zone', 'EWR', 'Airports', 'N/A']
+
+  - name: dim_times
+    description: "Time-of-day dimension containing the 24 hours and their periods of the day."
+    columns:
+      - name: time_id
+        description: "Natural hour identifier from 0 to 23."
+        tests:
+          - not_null
+          - unique
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+
+      - name: period
+        description: "Period of the day associated with the hour."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Night', 'Morning', 'Afternoon', 'Evening']
+
+  - name: fct_trips
+    description: "Incremental fact table containing all taxi trips and audit quality flags."
+    columns:
+      - name: trip_key
+        description: "Surrogate key uniquely identifying a trip."
+        tests:
+          - not_null
+          - unique
+
+      - name: vendor_key
+        description: "Vendor dimension key."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_vendors')
+                field: vendor_key
+
+      - name: pickup_date_id
+        description: "Pickup date dimension identifier in YYYYMMDD format."
+        tests:
+          - not_null
+
+      - name: dropoff_date_id
+        description: "Dropoff date dimension identifier in YYYYMMDD format."
+        tests:
+          - not_null
+
+      - name: pickup_time_id
+        description: "Pickup hour identifier."
+        tests:
+          - not_null
+
+      - name: dropoff_time_id
+        description: "Dropoff hour identifier."
+        tests:
+          - not_null
+
+      - name: payment_method_key
+        description: "Payment method dimension key."
+        tests:
+          - not_null
+
+      - name: ratecode_key
+        description: "Rate code dimension key."
+        tests:
+          - not_null
+
+      - name: pickup_location_id
+        description: "Pickup TLC taxi zone identifier."
+        tests:
+          - not_null
+
+      - name: dropoff_location_id
+        description: "Dropoff TLC taxi zone identifier."
+        tests:
+          - not_null
+
+      - name: trip_duration_min
+        description: "Elapsed trip duration in minutes."
+        tests:
+          - not_null
+
+      - name: duration_issue
+        description: "Duration and speed quality classification."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['valid', 'non_positive_duration', 'duration_over_180', 'implausible_speed']
+
+      - name: is_valid_duration
+        tests:
+          - not_null
+
+      - name: is_valid_trip
+        description: "Master trip validity flag for downstream business analysis."
+        tests:
+          - not_null

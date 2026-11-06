@@ -7,9 +7,7 @@ WITH time_lookup AS (
     FROM {{ ref('time_lookup') }}
 )
 
-SELECT
-    {{ dbt_utils.generate_surrogate_key(['hour']) }} AS time_sk,
-    hour AS hour_of_day,
-    period
+SELECT DISTINCT
+    CAST(hour AS INTEGER) AS time_id,
+    TRIM(period) AS period
 FROM time_lookup
-ORDER BY hour ASC
