@@ -2,10 +2,53 @@ version: 2
 
 sources:
   - name: nyc_tripdata
-    description: "Raw NYC Taxi trip data ingested via Airflow"
+    description: "NYC Yellow Taxi raw trip data ingested into Snowflake via Airflow ingestion pipeline."
     database: NYC_TAXI_DB
     schema: RAW
     tables:
       - name: raw_taxi_trips
-        description: "Raw yellow taxi trip records"
+        description: "Raw Yellow Taxi monthly trip records ingested from NYC TLC Parquet files."
         identifier: RAW_TAXI_TRIPS
+        config:
+          loaded_at_field: tpep_pickup_datetime
+          freshness:
+            warn_after:
+              count: 35
+              period: day
+            error_after:
+              count: 60
+              period: day
+        columns:
+          - name: VendorID
+            description: "A code indicating the TPEP provider that provided the record (1: CMT, 2: Curb, 6: Myle, 7: Helix)."
+            tests:
+              - not_null:
+                  config:
+                    severity: warn
+
+          - name: tpep_pickup_datetime
+            description: "The raw date and time when the meter was engaged (stored as VARIANT)."
+            tests:
+              - not_null
+
+          - name: tpep_dropoff_datetime
+            description: "The raw date and time when the meter was disengaged (stored as VARIANT)."
+            tests:
+              - not_null
+
+          - name: PULocationID
+            description: "TLC Taxi Zone in which the taximeter was engaged."
+            tests:
+              - not_null:
+                  config:
+                    severity: warn
+
+          - name: DOLocationID
+            description: "TLC Taxi Zone in which the taximeter was disengaged."
+            tests:
+              - not_null:
+                  config:
+                    severity: warn
+
+          - name: source_file_name
+            description: "Source Parquet filename ingested into Snowflake for lineage and idempotency tracking."

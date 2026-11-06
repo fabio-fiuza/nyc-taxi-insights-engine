@@ -4,21 +4,17 @@
 WITH
 
 source_seed AS (
-    SELECT * FROM {{ ref('taxi_zone_lookup') }}
+    SELECT *
+    FROM {{ ref('taxi_zone_lookup') }}
 ),
 
 renamed AS (
-
     SELECT
-
-    -- Identifiers
-        LocationID AS location_id,
-        Borough AS borough,
-        Zone AS zone,
-        service_zone AS service_zone
-
+        CAST(LocationID AS VARCHAR) AS location_id,
+        TRIM(Borough) AS borough,
+        TRIM(Zone) AS zone_name,
+        TRIM(service_zone) AS service_zone
     FROM source_seed
-
 )
 
 SELECT * FROM renamed

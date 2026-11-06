@@ -1,38 +1,40 @@
 -- stg_nyc_taxi__yellow_trips.sql
-
 {{ config(materialized='view') }}
 
-WITH
-
-source AS (
+WITH source AS (
     SELECT * FROM {{ source('nyc_tripdata', 'raw_taxi_trips') }}
 ),
 
 renamed AS (
-
     SELECT
+        -- Identifiers explicitly cast to VARCHAR
+        CASE
+            WHEN CAST(VendorID AS VARCHAR) IN ('1', '2', '6', '7')
+                THEN CAST(VendorID AS VARCHAR)
+            ELSE '99'
+        END AS vendor_id,
+        CAST(PULocationID AS VARCHAR) AS pickup_location_id,
+        CAST(DOLocationID AS VARCHAR) AS dropoff_location_id,
+        CASE
+            WHEN CAST(RatecodeID AS VARCHAR) IN ('1', '2', '3', '4', '5', '6')
+                THEN CAST(RatecodeID AS VARCHAR)
+            ELSE '99'
+        END AS ratecode_id,
+        CASE
+            WHEN CAST(payment_type AS VARCHAR) IN ('0', '1', '2', '3', '4', '5', '6')
+                THEN CAST(payment_type AS VARCHAR)
+            ELSE '5'
+        END AS payment_type,
 
-    -- Identifiers
-        VendorID AS vendor_id,
-        PULocationID AS pickup_location_id,
-        DOLocationID AS dropoff_location_id,
-        RatecodeID AS ratecode_id,
-        payment_type AS payment_type,
-
-        -- Timestamps (Casting VARIANT to string first using CAST, then to timestamp)
-        CAST(CAST(tpep_pickup_datetime AS VARCHAR) AS TIMESTAMP_NTZ)
-            AS pickup_datetime,
-        CAST(CAST(tpep_dropoff_datetime AS VARCHAR) AS TIMESTAMP_NTZ)
+        -- Timestamps
+        TRY_TO_TIMESTAMP_NTZ(tpep_pickup_datetime::VARCHAR) AS pickup_datetime,
+        TRY_TO_TIMESTAMP_NTZ(tpep_dropoff_datetime::VARCHAR)
             AS dropoff_datetime,
 
-        -- Operational Metrics
+        -- Operational & Financial Metrics
         CAST(passenger_count AS INTEGER) AS passenger_count,
         CAST(trip_distance AS NUMERIC(10, 2)) AS trip_distance,
-
-        --  Degenerated Attributes
         COALESCE(UPPER(TRIM(store_and_fwd_flag)), 'U') AS store_and_fwd_flag,
-
-        -- Financial Metrics
         CAST(fare_amount AS NUMERIC(10, 2)) AS fare_amount,
         CAST(extra AS NUMERIC(10, 2)) AS extra,
         CAST(mta_tax AS NUMERIC(10, 2)) AS mta_tax,
@@ -43,9 +45,26 @@ renamed AS (
         CAST(congestion_surcharge AS NUMERIC(10, 2)) AS congestion_surcharge,
         CAST(Airport_fee AS NUMERIC(10, 2)) AS airport_fee,
         CAST(cbd_congestion_fee AS NUMERIC(10, 2)) AS cbd_congestion_fee
-
     FROM source
+),
 
+surrogate_key_added AS (
+    SELECT
+        -- Primary surrogate key
+        {{ dbt_utils.generate_surrogate_key([
+            'vendor_id',
+            'pickup_datetime',
+            'dropoff_datetime',
+            'pickup_location_id',
+            'dropoff_location_id',
+            'passenger_count',
+            'trip_distance',
+            'fare_amount',
+            'total_amount',
+            'payment_type'
+        ]) }} AS trip_key,
+        *
+    FROM renamed
 )
 
-SELECT * FROM renamed
+SELECT * FROM surrogate_key_added
