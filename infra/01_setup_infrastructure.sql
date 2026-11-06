@@ -46,5 +46,6 @@ CREATE TABLE IF NOT EXISTS NYC_TAXI_DB.RAW.RAW_TAXI_TRIPS (
     total_amount FLOAT,
     congestion_surcharge FLOAT,
     Airport_fee FLOAT,
-    cbd_congestion_fee FLOAT
+    cbd_congestion_fee FLOAT,
+    source_file_name STRING
 );

@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 from airflow import DAG
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset # type: ignore
 from cosmos import DbtDag, ProjectConfig, ProfileConfig, ExecutionConfig, RenderConfig
 from cosmos.profiles import SnowflakeUserPasswordProfileMapping
 

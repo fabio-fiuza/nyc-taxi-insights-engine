@@ -1,23 +1,38 @@
 # %%
 import os
 import requests
-from tempfile import NamedTemporaryFile
+import tempfile
 from snowflake.connector import connect
 from dotenv import load_dotenv
 from loguru import logger
 
 # %%
-
 load_dotenv()
 
-SNOWFLAKE_USER = os.getenv("SNOWFLAKE_USER")
-SNOWFLAKE_PASSWORD = os.getenv("SNOWFLAKE_PASSWORD")
-SNOWFLAKE_ACCOUNT = os.getenv("SNOWFLAKE_ACCOUNT")
-SNOWFLAKE_DATABASE = os.getenv("SNOWFLAKE_DATABASE")
-SNOWFLAKE_SCHEMA = os.getenv("SNOWFLAKE_SCHEMA")
-SNOWFLAKE_WAREHOUSE = os.getenv("SNOWFLAKE_WAREHOUSE")
-SNOWFLAKE_STAGE = os.getenv("SNOWFLAKE_STAGE")
-SCHEMA = "RAW"
+REQUIRED_ENV_VARS = (
+    "SNOWFLAKE_USER",
+    "SNOWFLAKE_PASSWORD",
+    "SNOWFLAKE_ACCOUNT",
+    "SNOWFLAKE_DATABASE",
+    "SNOWFLAKE_WAREHOUSE",
+)
+
+missing_env_vars = [name for name in REQUIRED_ENV_VARS if not os.getenv(name)]
+if missing_env_vars:
+    raise RuntimeError(
+        f"Missing required environment variables: {', '.join(missing_env_vars)}"
+    )
+
+SNOWFLAKE_USER = os.environ["SNOWFLAKE_USER"]
+SNOWFLAKE_PASSWORD = os.environ["SNOWFLAKE_PASSWORD"]
+SNOWFLAKE_ACCOUNT = os.environ["SNOWFLAKE_ACCOUNT"]
+SNOWFLAKE_DATABASE = os.environ["SNOWFLAKE_DATABASE"]
+SNOWFLAKE_WAREHOUSE = os.environ["SNOWFLAKE_WAREHOUSE"]
+
+RAW_SCHEMA = "RAW"
+RAW_STAGE = "NYC_TAXI_INTERNAL_STAGE"
+PARQUET_FORMAT = "PARQUET_FORMAT"
+RAW_TABLE = "RAW_TAXI_TRIPS"
 
 # %%
 def get_snowflake_connection():
@@ -34,48 +49,49 @@ def get_snowflake_connection():
         account=SNOWFLAKE_ACCOUNT,
         warehouse=SNOWFLAKE_WAREHOUSE,
         database=SNOWFLAKE_DATABASE,
-        schema=SCHEMA,
+        schema=RAW_SCHEMA,
     )
 
 def download_nyc_taxi_from_cdn(year: int, month: int) -> str:
     """
-    Download the NYC taxi trip Parquet file from CloudFront via streaming and save it locally as a temporary file.
+    Download the NYC taxi trip Parquet file from CloudFront via streaming and save it locally with its deterministic name.
 
     Args:
         year (int): Year of the taxi trip data to download.
         month (int): Month of the taxi trip data to download.
 
     Returns:
-        str: Absolute file path to the temporary local Parquet file.
+        str: Absolute file path to the downloaded Parquet file.
     """
-    
     file_name = f"yellow_tripdata_{year}-{month:02d}.parquet"
     url = f"https://d37ci6vzurychx.cloudfront.net/trip-data/{file_name}"
     
     logger.info(f"Downloading data from CloudFront: {url}")
     response = requests.get(url, stream=True, timeout=60)
     
-    if response.status_code != 200:
-        error_msg = f"Failed to access CloudFront. Status Code: {response.status_code}. URL: {url}"
-        logger.error(error_msg)
-        raise Exception(error_msg)
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        logger.error(
+            "Failed to access CloudFront. Status Code: {}. URL: {}",
+            response.status_code,
+            url,
+        )
+        raise RuntimeError(
+            f"Failed to download {file_name}: HTTP {response.status_code}"
+        ) from exc
 
-    with NamedTemporaryFile(
-        suffix=".parquet",
-        delete=False
-        ) as temp_file:
-        
-        temp_path = temp_file.name
-        
+    target_path = os.path.join(tempfile.gettempdir(), file_name)
+    with open(target_path, "wb") as f:
         for chunk in response.iter_content(chunk_size=8192):
-            temp_file.write(chunk)
+            f.write(chunk)
             
-    logger.info(f"Temporary Parquet file saved locally at: {temp_path}")
-    return temp_path
+    logger.info(f"Parquet file saved locally at: {target_path}")
+    return target_path
 
 def upload_file_to_stage(cursor, local_path: str, file_name: str) -> None:
     """
-    Upload a local file to the Snowflake internal stage using the PUT command.
+    Upload a local file to the Snowflake internal stage, removing stale files under the same prefix.
 
     Args:
         cursor: Active database cursor for executing queries.
@@ -83,21 +99,30 @@ def upload_file_to_stage(cursor, local_path: str, file_name: str) -> None:
         file_name (str): Target filename inside the Snowflake internal stage.
 
     Returns:
-        None: Executes the PUT command directly on Snowflake.
+        None: Executes clean stage removal and PUT on Snowflake.
     """
-    
-    logger.info(f"Uploading file {file_name} to Snowflake Internal Stage")
+    logger.info(f"Cleaning stale stage files under prefix {file_name}...")
+    cursor.execute(
+        f"REMOVE @{SNOWFLAKE_DATABASE}.{RAW_SCHEMA}.{RAW_STAGE}/{file_name};"
+    )
+
+    logger.info(f"Uploading file {file_name} to Snowflake Internal Stage...")
     cursor.execute(f"""
         PUT file://{local_path} 
-        @NYC_TAXI_DB.RAW.NYC_TAXI_INTERNAL_STAGE/{file_name} 
-        AUTO_COMPRESS=TRUE 
+        @{SNOWFLAKE_DATABASE}.{RAW_SCHEMA}.{RAW_STAGE}/
+        AUTO_COMPRESS=FALSE
         OVERWRITE=TRUE;
     """)
     logger.info("Upload to stage completed successfully")
 
-def copy_stage_to_raw_table(cursor, file_name: str, target_table: str = "RAW_TAXI_TRIPS"):
+def copy_stage_to_raw_table(
+    cursor,
+    file_name: str,
+    target_table: str = RAW_TABLE,
+) -> None:
     """
     Execute the COPY INTO command to load data from the Snowflake internal stage into the target raw table.
+    Ensures idempotency by deleting any previously loaded data for the same source file before copying.
 
     Args:
         cursor (snowflake.connector.cursor.SnowflakeCursor): Active database cursor for executing queries.
@@ -105,17 +130,51 @@ def copy_stage_to_raw_table(cursor, file_name: str, target_table: str = "RAW_TAX
         target_table (str, optional): Name of the raw destination table. Defaults to "RAW_TAXI_TRIPS".
 
     Returns:
-        None: Executes the COPY INTO command directly on Snowflake.
+        None: Executes idempotency cleanup, COPY INTO, and metadata tracking on Snowflake.
     """
-    
-    logger.info(f"Loading data from stage into table {target_table}")
-    cursor.execute(f"""
-        COPY INTO NYC_TAXI_DB.RAW.{target_table}
-        FROM @NYC_TAXI_DB.RAW.NYC_TAXI_INTERNAL_STAGE/{file_name}
-        FILE_FORMAT = (FORMAT_NAME = 'NYC_TAXI_DB.RAW.PARQUET_FORMAT')
-        MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
-    """)
-    logger.info(f"Data successfully copied into table {target_table}")
+    try:
+        cursor.execute("BEGIN;")
+
+        logger.info(f"Ensuring target table schema has source_file_name column...")
+        cursor.execute(f"""
+            ALTER TABLE {SNOWFLAKE_DATABASE}.{RAW_SCHEMA}.{target_table}
+            ADD COLUMN IF NOT EXISTS source_file_name STRING;
+        """)
+
+        logger.info(f"Removing existing records for file {file_name} to guarantee idempotency...")
+        cursor.execute(
+            f"""
+            DELETE FROM {SNOWFLAKE_DATABASE}.{RAW_SCHEMA}.{target_table}
+            WHERE source_file_name = %s;
+            """,
+            (file_name,),
+        )
+
+        logger.info(f"Loading data from stage into table {target_table}...")
+        cursor.execute(f"""
+            COPY INTO {SNOWFLAKE_DATABASE}.{RAW_SCHEMA}.{target_table}
+            FROM @{SNOWFLAKE_DATABASE}.{RAW_SCHEMA}.{RAW_STAGE}/{file_name}
+            FILE_FORMAT = (
+                FORMAT_NAME = '{SNOWFLAKE_DATABASE}.{RAW_SCHEMA}.{PARQUET_FORMAT}'
+            )
+            MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
+        """)
+
+        logger.info(f"Tagging ingested records with source file name {file_name}...")
+        cursor.execute(
+            f"""
+            UPDATE {SNOWFLAKE_DATABASE}.{RAW_SCHEMA}.{target_table}
+            SET source_file_name = %s
+            WHERE source_file_name IS NULL;
+            """,
+            (file_name,),
+        )
+        cursor.execute("COMMIT;")
+        logger.info(f"Data successfully copied and tagged for file {file_name}")
+    except Exception:
+        cursor.execute("ROLLBACK;")
+        logger.error(f"Transaction failed while loading file {file_name}; changes rolled back")
+        raise
 
 def run_pipeline(year: int = 2026, month: int = 1):
     """
@@ -143,7 +202,7 @@ def run_pipeline(year: int = 2026, month: int = 1):
         
     except Exception as e:
         logger.error(f"Error occurred during pipeline execution: {e}")
-        raise e
+        raise
 
     finally:
         if temp_parquet_path and os.path.exists(temp_parquet_path):
