@@ -1,0 +1,85 @@
+# yaml-language-server: $schema=https://www.getdbt.com/dbt-schema.json
+version: 2
+
+models:
+  - name: int_nyc_taxi__yellow_trips_enriched
+    description: "Intermediate model enriching NYC Yellow Taxi trip data with duration metrics, speed, unit economics, and data quality audit flags."
+    columns:
+      - name: trip_key
+        description: "Trip surrogate key inherited from the staging layer."
+        tests:
+          - not_null
+          - unique
+
+      - name: pickup_date_id
+        description: "Pickup natural date identifier in YYYYMMDD integer format."
+        tests:
+          - not_null
+
+      - name: dropoff_date_id
+        description: "Dropoff natural date identifier in YYYYMMDD integer format."
+        tests:
+          - not_null
+
+      - name: pickup_time_id
+        description: "Pickup hour of the day (0 to 23)."
+        tests:
+          - not_null
+
+      - name: dropoff_time_id
+        description: "Dropoff hour of the day (0 to 23)."
+        tests:
+          - not_null
+
+      - name: trip_duration_min
+        description: "Calculated elapsed trip duration in minutes."
+        tests:
+          - not_null
+
+      - name: speed_mph
+        description: "Calculated average vehicle speed in miles per hour (mph)."
+        tests:
+          - not_null
+
+      - name: tip_percentage
+        description: "Calculated tip percentage relative to base fare amount."
+        tests:
+          - not_null
+
+      - name: total_surcharges
+        description: "Consolidated sum of all NYC regulatory surcharges and fees (extra, mta_tax, improvement, congestion, airport, cbd)."
+        tests:
+          - not_null
+
+      - name: duration_issue
+        description: "Data quality classification for trip duration and speed anomalies (valid, non_positive_duration, duration_over_180, implausible_speed)."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['valid', 'non_positive_duration', 'duration_over_180', 'implausible_speed']
+
+      - name: is_adjustment
+        description: "Boolean audit flag indicating negative fares (disputes, refunds, or system adjustments)."
+        tests:
+          - not_null
+
+      - name: is_zero_distance
+        description: "Boolean audit flag indicating trips recorded with zero distance elapsed."
+        tests:
+          - not_null
+
+      - name: is_plausible_date
+        description: "Boolean audit flag filtering out uncalibrated taximeter clocks with out-of-range years (outside 2020-2030)."
+        tests:
+          - not_null
+
+      - name: is_valid_duration
+        description: "Boolean audit flag indicating whether the trip duration and speed are plausible (duration_issue = 'valid')."
+        tests:
+          - not_null
+
+      - name: is_valid_trip
+        description: "Master quality flag. True for trips with valid duration, positive fares, non-zero distance, non-adjustment status, and plausible dates."
+        tests:
+          - not_null
